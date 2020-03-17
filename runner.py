@@ -3,12 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
 import argparse
 
-from utils import AverageMeter
+from utils import AverageMeter,Surface
 
 from models import Mark001
 
@@ -16,22 +17,25 @@ from data import get_loaders
 
 from val import validate
 
+from torchsummary import summary
+
+
 
 parser = argparse.ArgumentParser(description='SGD-FastConv training')
 
 parser.add_argument('--data_dir', type=str, default="./data/", required=False, help='training directory (default: None)')
-parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='input batch size (default: 32)')
-parser.add_argument('--num_workers', type=int, default=4, metavar='N', help='number of workers (default: 4)')
+parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='input batch size (default: 32)')
+parser.add_argument('--num_workers', type=int, default=8, metavar='N', help='number of workers (default: 4)')
 
 parser.add_argument('--epochs', type=int, default=20, metavar='N', help='number of epochs to train (default: 200)')
-parser.add_argument('--lr_init', type=float, default=0.01, metavar='LR', help='initial learning rate (default: 0.01)')
+parser.add_argument('--lr_init', type=float, default=0.001, metavar='LR', help='initial learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
 parser.add_argument('--wd', type=float, default=1e-5, help='weight decay (default: 1e-4)')
 
-parser.add_argument('--print_freq', type=int, default=100, metavar='N', help='save frequency (default: 25)')
+parser.add_argument('--print_freq', type=int, default=500, metavar='N', help='save frequency (default: 25)')
 parser.add_argument('--save_freq', type=int, default=1, metavar='N', help='save frequency (default: 25)')
 parser.add_argument('--eval_freq', type=int, default=1, metavar='N', help='evaluation frequency (default: 5)')
-parser.add_argument('--model_dir', type=str, default="./checkpoints/", required=False, help='Model Save Directory')
+parser.add_argument('--model_dir', type=str, default="checkpoints", required=False, help='Model Save Directory')
 
 args = parser.parse_args()
 
@@ -47,17 +51,22 @@ num_classes = 10
 model = Mark001(num_classes).to(device)
 
 
-optimizer = torch.optim.SGD(
+optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr_init,
-    momentum=args.momentum,
+    amsgrad=True,
+    # momentum=args.momentum,
     weight_decay=args.wd
 )
 
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.5, last_epoch=-1)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 200, gamma=0.5, last_epoch=-1)
 
 criterion = nn.CrossEntropyLoss()
 
+
+summary(model, (3, 32,32))
+
+s = Surface()
 
 for x in range(args.epochs):
 
@@ -77,6 +86,8 @@ for x in range(args.epochs):
 
 		losses.update(loss.item(), inputs.size(0))
 
+		s.add(model,loss.item())
+
 		if i % args.print_freq == 0:
 			print("\tStep: ",i,losses.__str__())
 
@@ -85,11 +96,4 @@ for x in range(args.epochs):
 	validate(test_loader,model,criterion,device)
 	torch.save(model.state_dict(), f"./{args.model_dir}/shfl-1")
 
-
-
-
-
-
-
-
-
+s.plot()
