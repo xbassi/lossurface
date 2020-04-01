@@ -32,3 +32,5 @@ def validate(val_loader,model, criterion,device):
 	acc = accuracy_score(gt,pred)
 
 	print("F1:",f1,"ACC:",acc)
+
+	return f1 

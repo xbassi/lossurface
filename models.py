@@ -19,11 +19,12 @@ class Mark001(nn.Module):
 		self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=1)
 		self.bn2 = nn.BatchNorm2d(128)
 
-		self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5, stride=1)
-		self.bn3 = nn.BatchNorm2d(256)
+		self.conv3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=1)
+		self.bn3 = nn.BatchNorm2d(128)
 
 
-		self.fc1 = nn.Linear(256,256)
+
+		self.fc1 = nn.Linear(128,256)
 		self.fbn1 = nn.BatchNorm1d(256)
 
 		self.fc2 = nn.Linear(256,128)
@@ -37,14 +38,12 @@ class Mark001(nn.Module):
 		x1 = self.lr(self.bn1(self.conv1(x1)))
 		# print(x1.shape)
 		x1 = self.pool(x1)
-
 		x1 = self.lr(self.bn2(self.conv2(x1)))
 		# print(x1.shape)
 		x1 = self.pool(x1)
-		
 		x1 = self.lr(self.bn3(self.conv3(x1)))
 		# x1 = self.pool(x1)
-		
+
 		# print(x1.shape)
 
 		x1 = x1.view(x1.shape[0],-1)

@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
@@ -27,7 +26,7 @@ parser.add_argument('--data_dir', type=str, default="./data/", required=False, h
 parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='input batch size (default: 32)')
 parser.add_argument('--num_workers', type=int, default=8, metavar='N', help='number of workers (default: 4)')
 
-parser.add_argument('--epochs', type=int, default=20, metavar='N', help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs', type=int, default=10, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--lr_init', type=float, default=0.001, metavar='LR', help='initial learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
 parser.add_argument('--wd', type=float, default=1e-5, help='weight decay (default: 1e-4)')
@@ -37,10 +36,13 @@ parser.add_argument('--save_freq', type=int, default=1, metavar='N', help='save 
 parser.add_argument('--eval_freq', type=int, default=1, metavar='N', help='evaluation frequency (default: 5)')
 parser.add_argument('--model_dir', type=str, default="checkpoints", required=False, help='Model Save Directory')
 
+parser.add_argument('--surface_track_freq', type=int, default=50, metavar='N', help='surface track frequency (default: 5)')
+
 args = parser.parse_args()
 
+print(args)
 
-device =  torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device =  torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 print(device)
 
 
@@ -56,21 +58,24 @@ optimizer = torch.optim.Adam(
     lr=args.lr_init,
     amsgrad=True,
     # momentum=args.momentum,
-    weight_decay=args.wd
+    # weight_decay=args.wd
 )
 
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 200, gamma=0.5, last_epoch=-1)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.9, last_epoch=-1)
 
 criterion = nn.CrossEntropyLoss()
 
 
-summary(model, (3, 32,32))
+# summary(model, (3, 32,32))
 
 s = Surface()
+
+score = 0
 
 for x in range(args.epochs):
 
 	losses = AverageMeter('Loss', ':.6f')
+
 
 	for i, (inputs, label) in enumerate(train_loader):
 
@@ -86,14 +91,16 @@ for x in range(args.epochs):
 
 		losses.update(loss.item(), inputs.size(0))
 
-		s.add(model,loss.item())
+		if i % args.surface_track_freq == 0: 
+			s.add(model,loss.item(),score)
 
 		if i % args.print_freq == 0:
 			print("\tStep: ",i,losses.__str__())
 
 	scheduler.step()
 	print("Epoch: ",x,losses.__str__())
-	validate(test_loader,model,criterion,device)
-	torch.save(model.state_dict(), f"./{args.model_dir}/shfl-1")
+	score = validate(test_loader,model,criterion,device)
+	# s.add(model,loss.item(),score)	
+	# torch.save(model.state_dict(), f"./{args.model_dir}/shfl-1")
 
 s.plot()

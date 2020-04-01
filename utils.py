@@ -1,4 +1,8 @@
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter1d
+import matplotlib as mpl 
+mpl.rcParams['agg.path.chunksize'] = 10000000
+
 import matplotlib.pyplot as plt
 
 
@@ -32,31 +36,63 @@ class Surface(object):
 
     def __init__(self):
 
-        self.num_weights = 5
+        self.num_weights = 7
         self.series = []
         for i in range(self.num_weights):
             self.series.append([])
 
-    def add(self,model,loss):
+        self.counter = 0
 
-        weight = list(model.parameters())[0].view(-1).data.detach().cpu().numpy()
+    def add(self,model,loss,score):
+
+        self.counter += 1
+        
         
         for i in range(self.num_weights):
-            self.series[i].append([weight[i],loss])
+            weight = list(model.parameters())[i].view(-1).data.detach().cpu().numpy()
+            self.series[i].append([weight[0],loss,score,self.counter])
 
     def plot(self):
 
         for i in range(self.num_weights):
-
+            print(len(self.series[i]))
             self.series[i] = np.array(self.series[i])
-            self.series[i] = self.series[i][self.series[i][:,1].argsort()] 
-
             plt.figure(figsize=(18,10))
 
-            plt.ylabel("Weight Value")
-            plt.xlabel("Loss")
+            ysmoothed = gaussian_filter1d(self.series[i][:,1], sigma=4)
 
-            plt.plot(self.series[i][:,1],self.series[i][:,0])
+            plt.ylabel("Loss")
+            plt.xlabel("Weight Value")
+
+            # plt.plot(self.series[i][:,2],self.series[i][:,0],color="blue")
+            plt.plot(self.series[i][:,0],self.series[i][:,1],color="red",linewidth=1,marker=".")
+            plt.plot(self.series[i][:,0],ysmoothed,color="#777777",linewidth=1,marker=".")
+
+            plt.plot([self.series[i][-1,0]],[self.series[i][-1,1]],color="blue",marker=".")
             # plt.show()
-            plt.savefig(f"graphs/surface{str(i)}.png", dpi=600)
+            plt.savefig(f"graphs/adam_r4_{str(i)}_1.png", dpi=300)
+            # plt.clf()
+
+            self.series[i] = self.series[i][self.series[i][:,0].argsort()]
+
+            # plt.ylabel("Score")
+            # plt.xlabel("Weight Value")
+
+            # plt.plot(self.series[i][:,0],self.series[i][:,2])
+            # # plt.show()
+            # plt.savefig(f"graphs/surface{str(i)}_2.png", dpi=300)
+            # plt.clf()
+
+            # self.series[i] = self.series[i][self.series[i][:,1].argsort()]
+
+            # plt.ylabel("Loss")
+            # plt.xlabel("Weight Value")
+
+            # plt.plot(self.series[i][:,0],self.series[i][:,1])
+            # # plt.show()
+            # plt.savefig(f"graphs/surface{str(i)}_3.png", dpi=300)
+
             plt.close()
+
+
+
