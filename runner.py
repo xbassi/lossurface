@@ -8,7 +8,7 @@ import os
 import sys
 import argparse
 
-from utils import AverageMeter,Surface
+from utils import AverageMeter,Surface,AsymValley
 
 from models import Mark001
 
@@ -23,8 +23,8 @@ from torchsummary import summary
 parser = argparse.ArgumentParser(description='SGD-FastConv training')
 
 parser.add_argument('--data_dir', type=str, default="./data/", required=False, help='training directory (default: None)')
-parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='input batch size (default: 32)')
-parser.add_argument('--num_workers', type=int, default=8, metavar='N', help='number of workers (default: 4)')
+parser.add_argument('--batch_size', type=int, default=12, metavar='N', help='input batch size (default: 32)')
+parser.add_argument('--num_workers', type=int, default=4, metavar='N', help='number of workers (default: 4)')
 
 parser.add_argument('--epochs', type=int, default=10, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--lr_init', type=float, default=0.001, metavar='LR', help='initial learning rate (default: 0.01)')
@@ -42,7 +42,7 @@ args = parser.parse_args()
 
 print(args)
 
-device =  torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device =  torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
 
@@ -57,7 +57,7 @@ optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr_init,
     amsgrad=True,
-    momentum=args.momentum,
+    # momentum=args.momentum,
     weight_decay=args.wd
 )
 
@@ -69,6 +69,8 @@ criterion = nn.CrossEntropyLoss()
 # summary(model, (3, 32,32))
 
 # s = Surface()
+
+asmv = AsymValley("cifar10",10)
 
 score = 0
 
@@ -105,6 +107,6 @@ for x in range(args.epochs):
 
 # s.plot()
 
-
+asmv.draw(model,criterion,0.2)
 
 

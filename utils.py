@@ -3,6 +3,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 import matplotlib as mpl 
 mpl.rcParams['agg.path.chunksize'] = 10000000
 
+import os
 import matplotlib.pyplot as plt
 
 
@@ -36,54 +37,59 @@ class AsymValley(object):
     def __init__(self,name,num_directions):
 
         self.name=name
+        self.opdir = "./graphs/"+self.name
+        os.makedirs(self.opdir,exist_ok=True)
         self.num_directions = num_directions
+        self.plot_number = 1
+
+    def draw(self,model1,loss_func,distances_scale):
+
+        for j in range(self.num_directions):
+
+            vec_sgd = self.parameters_to_vector(model1.parameters())
+            # vec_swa = self.parameters_to_vector(model2.parameters())
+            # print(vec_swa.size())
+            vec_rand = torch.rand(vec_sgd.shape)
+            vec_rand = vec_rand / torch.norm(vec_rand)
+
+            # print(vec_sgd)
+            # print(vec_swa)
 
 
-    def draw(self,args,model1,model2,loss_func):
+            distances = 20
 
-        vec_sgd = self.parameters_to_vector(model1.parameters())
-        vec_swa = self.parameters_to_vector(model2.parameters())
-        # print(vec_swa.size())
-        vec_rand = torch.rand(vec_swa.shape)
-        vec_rand = vec_rand / torch.norm(vec_rand)
-
-        # print(vec_sgd)
-        # print(vec_swa)
+            loss_record = np.zeros( (distances*2) + 1)
+            # vec_rand = vec_swa - vec_sgd
+            # distances_scale = torch.norm(vec_rand)/5
 
 
-        distances = 20
+            for distance in range(-distances, distances + 1):
+                # print(distance)
+                vec_temp = vec_sgd + distance * vec_rand * distances_scale
+                self.vector_to_parameters(vec_temp, model1.parameters())
 
-        loss_record = np.zeros( (distances*2) + 1)
-        # vec_rand = vec_swa - vec_sgd
-        # distances_scale = torch.norm(vec_rand)/5
+                model1.eval()
+                out = model1(x)  # input x and predict based on x
+                loss_record[distance+distances] = loss_func(out, y)  # must be (1. nn output, 2. target), the target label is NOT one-hotted
 
-
-        for distance in range(-distances, distances + 1):
-            # print(distance)
-            vec_temp = vec_swa + distance * vec_rand * args.distances_scale
-            self.vector_to_parameters(vec_temp, model1.parameters())
-
-            model1.eval()
-            out = model1(x)  # input x and predict based on x
-            loss_record[distance+distances] = loss_func(out, y)  # must be (1. nn output, 2. target), the target label is NOT one-hotted
-
-        np.savetxt(os.path.join(args.dir, 'loss_record.txt'), loss_record)
+            np.savetxt(os.path.join(self.opdir, 'loss_record.txt'), loss_record)
 
 
-        #draw figure with format?
-        sgd_train_loss_results = np.loadtxt(os.path.join(args.dir, 'loss_record.txt'))
-        
-        distances_scale = args.distances_scale
-        plt.rcParams['figure.figsize'] = (7.0, 4.0)
-        plt.subplots_adjust(bottom=.12, top=.99, left=.1, right=.99)
-        plt.plot(np.arange(-distances*distances_scale, distances*distances_scale + distances_scale, distances_scale), sgd_train_loss_results, label='Training loss', color='dodgerblue')
-        plt.scatter(0, sgd_train_loss_results[distances], marker='o',s=70,c='orange',label='SGD solution')
-        plt.legend(fontsize=14)
-        plt.ylabel('Loss',fontsize=14)
-        plt.xlabel('A random direction generated from (0,1)-uniform distribution',fontsize=13)
-        plt.savefig(os.path.join(args.dir, self.name+str(seed0)+'.png'))
-        # plt.savefig(os.path.join(args.dir, 'logistic_regression_asym'+str(seed0)+'.pdf'))
-        plt.close()
+            #draw figure with format?
+            sgd_train_loss_results = np.loadtxt(os.path.join(self.opdir, 'loss_record.txt'))
+            
+            plt.rcParams['figure.figsize'] = (7.0, 4.0)
+            plt.subplots_adjust(bottom=.12, top=.99, left=.1, right=.99)
+            plt.plot(np.arange(-distances*distances_scale, distances*distances_scale + distances_scale, distances_scale), sgd_train_loss_results, label='Training loss', color='dodgerblue')
+            plt.scatter(0, sgd_train_loss_results[distances], marker='o',s=70,c='orange',label='SGD solution')
+            plt.legend(fontsize=14)
+            plt.ylabel('Loss',fontsize=14)
+            plt.xlabel('A random direction generated from (0,1)-uniform distribution',fontsize=13)
+            plt.savefig(os.path.join(self.opdir, self.name+"_"+str(self.plot_number).zfill(3)+'_'+str(j).zfill(3)+'.png'))
+            # plt.savefig(os.path.join(self.opdir, self.name+"_"+str(self.plot_number).zfill(3)+'_'+str(j).zfill(3)+'.pdf'))
+            plt.close()
+
+        self.plot_number += 1
 
     def parameters_to_vector(self,parameters):
         r"""Convert parameters to one vector
