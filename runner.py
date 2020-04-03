@@ -57,18 +57,18 @@ optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr_init,
     amsgrad=True,
-    # momentum=args.momentum,
-    # weight_decay=args.wd
+    momentum=args.momentum,
+    weight_decay=args.wd
 )
 
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.9, last_epoch=-1)
+# scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.9, last_epoch=-1)
 
 criterion = nn.CrossEntropyLoss()
 
 
 # summary(model, (3, 32,32))
 
-s = Surface()
+# s = Surface()
 
 score = 0
 
@@ -91,16 +91,20 @@ for x in range(args.epochs):
 
 		losses.update(loss.item(), inputs.size(0))
 
-		if i % args.surface_track_freq == 0: 
-			s.add(model,loss.item(),score)
+		# if i % args.surface_track_freq == 0: 
+		# 	s.add(model,loss.item(),score)
 
 		if i % args.print_freq == 0:
 			print("\tStep: ",i,losses.__str__())
 
-	scheduler.step()
+	# scheduler.step()
 	print("Epoch: ",x,losses.__str__())
 	score = validate(test_loader,model,criterion,device)
 	# s.add(model,loss.item(),score)	
 	# torch.save(model.state_dict(), f"./{args.model_dir}/shfl-1")
 
-s.plot()
+# s.plot()
+
+
+
+
