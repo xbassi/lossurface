@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter1d
 import matplotlib as mpl 
@@ -5,7 +6,7 @@ mpl.rcParams['agg.path.chunksize'] = 10000000
 
 import os
 import matplotlib.pyplot as plt
-
+import copy
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -34,62 +35,82 @@ class AverageMeter(object):
 
 class AsymValley(object):
 
-    def __init__(self,name,num_directions):
+    def __init__(self,name):
 
         self.name=name
         self.opdir = "./graphs/"+self.name
         os.makedirs(self.opdir,exist_ok=True)
-        self.num_directions = num_directions
-        self.plot_number = 1
+        
 
-    def draw(self,model1,loss_func,distances_scale):
-
-        for j in range(self.num_directions):
-
-            vec_sgd = self.parameters_to_vector(model1.parameters())
-            # vec_swa = self.parameters_to_vector(model2.parameters())
-            # print(vec_swa.size())
-            vec_rand = torch.rand(vec_sgd.shape)
-            vec_rand = vec_rand / torch.norm(vec_rand)
-
-            # print(vec_sgd)
-            # print(vec_swa)
+    def draw(self,model,evalav,train_loader,test_loader,loss_func,distances_scale,plot_number):
 
 
-            distances = 20
-
-            loss_record = np.zeros( (distances*2) + 1)
-            # vec_rand = vec_swa - vec_sgd
-            # distances_scale = torch.norm(vec_rand)/5
+        # torch.manual_seed(np.random.randint(1,99999999999999))
 
 
-            for distance in range(-distances, distances + 1):
-                # print(distance)
-                vec_temp = vec_sgd + distance * vec_rand * distances_scale
-                self.vector_to_parameters(vec_temp, model1.parameters())
+        model1 = copy.deepcopy(model)
+        model1 = model1.cpu()
 
-                model1.eval()
-                out = model1(x)  # input x and predict based on x
-                loss_record[distance+distances] = loss_func(out, y)  # must be (1. nn output, 2. target), the target label is NOT one-hotted
+        vec_sgd = self.parameters_to_vector(model1.parameters())
+        # vec_swa = self.parameters_to_vector(model2.parameters())
+        # print(vec_swa.size())
+        vec_rand = torch.rand(vec_sgd.shape).cpu()
+        vec_rand = vec_rand / torch.norm(vec_rand)
 
-            np.savetxt(os.path.join(self.opdir, 'loss_record.txt'), loss_record)
+        # print(vec_sgd)
+        # print(vec_swa)
 
 
-            #draw figure with format?
-            sgd_train_loss_results = np.loadtxt(os.path.join(self.opdir, 'loss_record.txt'))
-            
-            plt.rcParams['figure.figsize'] = (7.0, 4.0)
-            plt.subplots_adjust(bottom=.12, top=.99, left=.1, right=.99)
-            plt.plot(np.arange(-distances*distances_scale, distances*distances_scale + distances_scale, distances_scale), sgd_train_loss_results, label='Training loss', color='dodgerblue')
-            plt.scatter(0, sgd_train_loss_results[distances], marker='o',s=70,c='orange',label='SGD solution')
-            plt.legend(fontsize=14)
-            plt.ylabel('Loss',fontsize=14)
-            plt.xlabel('A random direction generated from (0,1)-uniform distribution',fontsize=13)
-            plt.savefig(os.path.join(self.opdir, self.name+"_"+str(self.plot_number).zfill(3)+'_'+str(j).zfill(3)+'.png'))
-            # plt.savefig(os.path.join(self.opdir, self.name+"_"+str(self.plot_number).zfill(3)+'_'+str(j).zfill(3)+'.pdf'))
-            plt.close()
+        distances = 15
 
-        self.plot_number += 1
+        loss_record_train = np.zeros( (distances*2) + 1)
+        loss_record_test = np.zeros( (distances*2) + 1)
+
+        # vec_rand = vec_swa - vec_sgd
+        # distances_scale = torch.norm(vec_rand)/5
+
+
+        for distance in range(-distances, distances + 1):
+            # print(distance)
+            vec_temp = vec_sgd + distance * vec_rand * distances_scale
+            self.vector_to_parameters(vec_temp, model1.parameters())
+
+            evaltest = evalav(test_loader, model1, loss_func)
+
+            evaltrain = evalav(train_loader, model1, loss_func)                
+
+            loss_record_test[distance+distances] = evaltest["loss"]
+
+            loss_record_train[distance+distances] = evaltrain["loss"]
+
+            print(distance)
+            print("Test Loss:",evaltest["loss"],"Test Acc:",evaltest["accuracy"])
+            print("Train Loss:",evaltrain["loss"],"Train Acc:",evaltrain["accuracy"])
+            print()
+        # np.savetxt(os.path.join(self.opdir, 'loss_record.txt'), loss_record)
+
+
+        #draw figure with format?
+        # sgd_train_loss_results = np.loadtxt(os.path.join(self.opdir, 'loss_record.txt'))
+        
+        plt.rcParams['figure.figsize'] = (7.0, 4.0)
+        plt.subplots_adjust(bottom=.12, top=.99, left=.1, right=.99)
+        
+
+        plt.plot(np.arange(-distances*distances_scale, distances*distances_scale + distances_scale, distances_scale), loss_record_train, label='Training loss', color='dodgerblue')
+        plt.plot(np.arange(-distances*distances_scale, distances*distances_scale + distances_scale, distances_scale), loss_record_test, label='Test loss', color='orange')
+        
+        plt.scatter(0, loss_record_train[distances], marker='o',s=70,c='orange',label='SGD solution')
+        plt.legend(fontsize=14)
+        plt.ylabel('Loss',fontsize=14)
+        plt.xlabel('A random direction generated from (0,1)-uniform distribution',fontsize=13)
+        plt.savefig(os.path.join(self.opdir, self.name+"_"+str(plot_number).zfill(3)+'.png'))
+        # plt.savefig(os.path.join(self.opdir, self.name+"_"+str(plot_number).zfill(3)+'.pdf'))
+        plt.close()
+
+        del model1
+
+        
 
     def parameters_to_vector(self,parameters):
         r"""Convert parameters to one vector
