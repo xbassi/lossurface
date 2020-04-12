@@ -38,7 +38,7 @@ class AsymValley(object):
     def __init__(self,name):
 
         self.name=name
-        self.opdir = "./graphs/"+self.name
+        self.opdir = self.name
         os.makedirs(self.opdir,exist_ok=True)
         
 
@@ -104,7 +104,7 @@ class AsymValley(object):
         plt.legend(fontsize=14)
         plt.ylabel('Loss',fontsize=14)
         plt.xlabel('A random direction generated from (0,1)-uniform distribution',fontsize=13)
-        plt.savefig(os.path.join(self.opdir, self.name+"_"+str(plot_number).zfill(3)+'.png'))
+        plt.savefig(os.path.join(self.opdir,str(plot_number).zfill(3)+'.png'))
         # plt.savefig(os.path.join(self.opdir, self.name+"_"+str(plot_number).zfill(3)+'.pdf'))
         plt.close()
 
